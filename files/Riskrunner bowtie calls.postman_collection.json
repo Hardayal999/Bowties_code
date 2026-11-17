@@ -1,0 +1,457 @@
+{
+  "info": {
+    "name": "Riskrunner bowtie calls (SANDBOX only)",
+    "description": "Every kind of message the bowtie tool sends to Riskrunner, one request each, so each can be tried by hand.\n\nRULES: run the steps in order. Only use the requests in this collection. Postman itself has no safety: this collection carries a small guard script, but a request you add yourself outside this collection has no guard at all.\n\nBefore you start: open the collection's Variables tab and put your Riskrunner email and password in the CURRENT VALUE column (not Initial value), then Save.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// SAFETY GUARD for this collection. It runs before every request.",
+          "// If it throws, Postman does NOT send the request.",
+          "const method = pm.request.method;",
+          "const address = pm.variables.replaceIn(pm.request.url.toString());",
+          "",
+          "// 1. This collection never deletes or changes existing things.",
+          "if ([\"DELETE\", \"PATCH\", \"PUT\"].includes(method)) {",
+          "    throw new Error(\"BLOCKED: this collection never sends \" + method + \".\");",
+          "}",
+          "",
+          "// 2. A step that needs an ID must have one. Run the earlier steps first.",
+          "if (/\\/(assessments|reviews)\\/\\//.test(address) || /\\{\\{/.test(address)) {",
+          "    throw new Error(\"BLOCKED: an ID is missing. Run the earlier steps in order first.\");",
+          "}",
+          "",
+          "// 3. Any ID in the address must be one that THIS collection created.",
+          "const mine = [pm.collectionVariables.get(\"assessment_id\"), pm.collectionVariables.get(\"review_id\")].filter(Boolean);",
+          "const ids = address.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) || [];",
+          "ids.forEach(function (id) {",
+          "    if (!mine.includes(id)) {",
+          "        throw new Error(\"BLOCKED: this address points at something this collection did not create.\");",
+          "    }",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://riskrunner.app/api"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "assessment_id",
+      "value": ""
+    },
+    {
+      "key": "review_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "A. Look only (changes nothing)",
+      "description": "Safe to show anyone. Nothing in Riskrunner changes.",
+      "item": [
+        {
+          "name": "1. Is Riskrunner there?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Asks Riskrunner whether it is up. Needs no login. Changes nothing.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Riskrunner answered\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Log in",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "token"
+              ]
+            },
+            "description": "Sends your email and password and gets back a token: a temporary pass that the other steps show. Put your email and password in the collection's Variables tab, in the CURRENT VALUE column only.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{email}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Logged in\", function () { pm.response.to.have.status(200); });",
+                  "var token = pm.response.json().access_token;",
+                  "if (token) { pm.collectionVariables.set(\"token\", token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Who am I?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/me/context",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "context"
+              ]
+            },
+            "description": "Shows your name, and whether your account may create assessments (can_add_assessments). Changes nothing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Answered\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"My account may create assessments\", function () {",
+                  "    pm.expect(pm.response.json().active_tenant_membership.can_add_assessments).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Extra: list the assessments I can see",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assessments"
+              ]
+            },
+            "description": "READ ONLY. Lists the assessments your account can see. The tool itself never uses this call. It is here only to show the team what a reply looks like."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Answered\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B. Build one bowtie in a new SANDBOX assessment",
+      "description": "Creates a new assessment of your own and puts one small test bowtie in it.",
+      "item": [
+        {
+          "name": "4. Create my SANDBOX assessment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assessments"
+              ]
+            },
+            "description": "Creates one NEW, EMPTY assessment and remembers its ID for the next steps. Each time you run this you get another new assessment, so run it once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SANDBOX bowtie test - Postman - safe to delete\",\n  \"description\": \"Created from Postman for testing. Contains test data only. Safe to delete.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Created\", function () { pm.response.to.have.status(200); });",
+                  "var a = pm.response.json();",
+                  "var links = Array.isArray(a.hazard_links) ? a.hazard_links.length : (a.hazard_links || 0);",
+                  "pm.test(\"It is brand new: no parent and nothing inside\", function () {",
+                  "    pm.expect(a.parent_id).to.not.be.ok;",
+                  "    pm.expect(links).to.eql(0);",
+                  "});",
+                  "pm.collectionVariables.set(\"assessment_id\", a.id);",
+                  "pm.collectionVariables.set(\"review_id\", \"\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Open an editing session (review)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments/{{assessment_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessment_id}}",
+                "reviews"
+              ]
+            },
+            "description": "Riskrunner only accepts changes inside an editing session, which it calls a review. This opens one inside YOUR sandbox assessment and remembers its ID.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bowtie load\",\n  \"type\": \"entities\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Opened\", function () { pm.response.to.have.status(200); });",
+                  "var r = pm.response.json();",
+                  "pm.test(\"It belongs to my sandbox assessment\", function () {",
+                  "    pm.expect(r.assessment_id).to.eql(pm.collectionVariables.get(\"assessment_id\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"review_id\", r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Add one small bowtie",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}/links/hazards/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reviews",
+                "{{review_id}}",
+                "links",
+                "hazards",
+                ""
+              ]
+            },
+            "description": "Sends one whole bowtie in one message: a hazard, its top event, two causes with a control each, and one consequence with a control. This is the same kind of message the tool sends for each hazard.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"create_missing_elements\": true,\n  \"data\": [\n    {\n      \"element_name\": \"POSTMAN TEST: Road and rail sharing a level crossing\",\n      \"top_events\": [\n        {\n          \"element_name\": \"POSTMAN TEST: Vehicle on the crossing as a train arrives\",\n          \"threats\": [\n            {\n              \"element_name\": \"Driver ignores the warning lights\",\n              \"barriers\": [\n                {\n                  \"element_name\": \"Boom gates\"\n                }\n              ]\n            },\n            {\n              \"element_name\": \"Boom gate fails to lower\",\n              \"barriers\": [\n                {\n                  \"element_name\": \"Gate fault alarm to the control centre\"\n                }\n              ]\n            }\n          ],\n          \"consequences\": [\n            {\n              \"element_name\": \"Collision between train and vehicle\",\n              \"barriers\": [\n                {\n                  \"element_name\": \"Train emergency brake\"\n                }\n              ]\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Accepted\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Read back my hazards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments/{{assessment_id}}/links/hazards?offset=0&limit=100&include_draft=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessment_id}}",
+                "links",
+                "hazards"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "include_draft",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "READ ONLY. Lists the hazards now in YOUR sandbox assessment, including ones still in the open editing session."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Answered\", function () { pm.response.to.have.status(200); });",
+                  "console.log(\"Hazards in my sandbox assessment: \" + (pm.response.json().items || []).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C. Other route: upload an import file",
+      "description": "Run step 4 first (a fresh sandbox assessment), then this, then step 7.",
+      "item": [
+        {
+          "name": "8. Upload an Excel import file",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments/{{assessment_id}}/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessment_id}}",
+                "import"
+              ]
+            },
+            "description": "The other route. Uploads an Excel file in Riskrunner's export layout into YOUR sandbox assessment. In the Body tab, next to 'file', choose bowtie_output/riskrunner_import.xlsx. Riskrunner does the import in the background, so wait a little and then run step 7.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Riskrunner took the file\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "_how_to_use": [
+    "This file tells the program where things are in YOUR hazard log.",
+    "Left of the colon: what the program calls it. Do not change the left side.",
+    "Right of the colon: the sheet name or column heading in your workbook. Change this to match.",
+    "Capital letters and extra spaces do not matter.",
+    "If your workbook does not have something, leave it as \"\". Only three are required: top_event, cause and control.",
+    "To accept several possible headings, use a list: [\"Causes\", \"Cause\", \"Hazard Cause\"]."
+  ],
+
+  "register": {
+    "sheet": "Register-View-All",
+    "top_event": "Hazards",
+    "top_event_id": "",
+    "hazard": "",
+    "cause": "Causes",
+    "cause_id": "",
+    "consequence": "Consequences",
+    "consequence_id": "",
+    "control": "Controls",
+    "control_id": "",
+    "control_type": "Control Type",
+    "control_hierarchy": "Control Hierarchy",
+    "control_owner": "Control Owner Allocation",
+    "control_status": "Control Status",
+    "initial_likelihood": "Initial Likelihood",
+    "initial_consequence": "Initial Consequences",
+    "initial_rating": "Initial Rating",
+    "residual_likelihood": "Residual Likelihood",
+    "residual_consequence": "Residual Consequences",
+    "residual_rating": "Residual Rating"
+  },
+
+  "hazards_tab": {
+    "sheet": "Hazards",
+    "id": "Hazard ID",
+    "name": "Hazard",
+    "hazard": "Context"
+  },
+
+  "causes_tab": {
+    "sheet": "Causes",
+    "id": "Cause ID",
+    "name": "Cause",
+    "top_event_ids": "Hazard ID",
+    "consequence_ids": "Consequence ID",
+    "initial_rating": "Initial Rating",
+    "residual_rating": "Residual Rating"
+  },
+
+  "controls_tab": {
+    "sheet": "Controls",
+    "id": "Control ID",
+    "name": "Control Measure",
+    "type": "Control Type",
+    "hierarchy": "Control Hierarchy",
+    "owner": "Control Owner Allocation",
+    "status": "Control Status",
+    "cause_ids": "Cause ID"
+  },
+
+  "consequences_tab": {
+    "sheet": "Consequences",
+    "id": "Consequence ID",
+    "name": "Consequences"
+  },
+
+  "left_side_words": ["Preventative", "Preventive", "Prevention"],
+  "right_side_words": ["Mitigative", "Mitigating", "Mitigation", "Recovery"],
+  "side_when_type_is_missing": "unknown"
+}
